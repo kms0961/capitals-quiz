@@ -23,13 +23,15 @@
   display:flex;align-items:baseline;justify-content:space-between;gap:16px;
 }
 .abort{
-  appearance:none;background:transparent;border:0;cursor:pointer;padding:0 0 2px;
+  appearance:none;background:transparent;cursor:pointer;white-space:nowrap;
+  padding:5px 10px;border:1px solid var(--hairline);border-radius:20px;
   font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
-  color:var(--faint);border-bottom:1px solid transparent;white-space:nowrap;
-  transition:color .16s,border-color .16s;
+  color:var(--graphite);
+  transition:color .16s,border-color .16s,background .16s;
 }
-.abort:hover{color:var(--graphite);border-color:var(--hairline);}
-.abort:focus-visible{outline:2px solid var(--ink);outline-offset:4px;}
+.abort:hover{color:var(--ink);border-color:var(--graphite);}
+.abort:active{background:var(--hairline);}
+.abort:focus-visible{outline:2px solid var(--ink);outline-offset:3px;}
 
 /* ---- Range selector (start screen) ---------------------------- */
 .range-list{
