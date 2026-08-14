@@ -453,13 +453,6 @@
     /* ---- Evaluate an answer (2 tries per question) --------------- */
     function evaluate(){
       const guess = input.value.trim();
-      if(!guess){                       // empty: nudge, don't burn a try
-        field.classList.remove("shake"); void field.offsetWidth;
-        if(!reduce) field.classList.add("shake");
-        input.focus();
-        return;
-      }
-
       locked = true;
       input.disabled = true;
       status.textContent = "Armed";
