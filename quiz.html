@@ -26,7 +26,10 @@
 
     <!-- ============ QUIZ ============ -->
     <section id="quizView" class="hidden">
-      <p class="eyebrow">Name the capital of</p>
+      <div class="quiz-head">
+        <p class="eyebrow">Name the capital of</p>
+        <button type="button" class="abort" id="abortBtn" aria-label="Abort test and return to start">Abort test</button>
+      </div>
       <h1 class="country" id="country">—</h1>
 
       <div class="field" id="field">
@@ -336,6 +339,7 @@
     const review = document.getElementById("review");
     const retryBtn = document.getElementById("retryBtn");
     const newBtn = document.getElementById("newBtn");
+    const abortBtn = document.getElementById("abortBtn");
 
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -373,6 +377,7 @@
     let phase = "await";      // await | result
     let locked = false;       // blocks re-entry during the Armed dwell
     let missed = [];          // { c, cap } for the end-of-test review
+    let pendingTimeout = null; // in-flight evaluate() dwell, cancelable on abort
 
     function shuffle(a){
       const r = a.slice();
@@ -462,7 +467,8 @@
       const right = isCorrect(guess, q);
       const dwell = reduce ? 0 : 420;
 
-      window.setTimeout(() => {
+      pendingTimeout = window.setTimeout(() => {
+        pendingTimeout = null;
         if(right)              resolveCorrect(q);
         else if(attempt === 1) resolveRetry(q);
         else                   resolveMissed(q);
@@ -565,6 +571,14 @@
 
     newBtn.addEventListener("click", () => {
       resultsView.classList.add("hidden");
+      quizView.classList.add("hidden");
+      startView.classList.remove("hidden");
+      rangeLabel.textContent = "Capitals · Field Test";
+    });
+
+    abortBtn.addEventListener("click", () => {
+      if(!confirm("Abort this test? Your progress won't be saved.")) return;
+      if(pendingTimeout){ clearTimeout(pendingTimeout); pendingTimeout = null; }
       quizView.classList.add("hidden");
       startView.classList.remove("hidden");
       rangeLabel.textContent = "Capitals · Field Test";
