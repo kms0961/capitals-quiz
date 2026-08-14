@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Submit — Actuator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="button.css">
+</head>
+<body>
+  <main class="panel">
+    <div class="masthead">
+      <span>Submit · Actuator</span>
+      <span class="fig">Fig.01</span>
+    </div>
+
+    <h1>One press.<br>That's the whole job.</h1>
+    <p class="lede">A submit control built to be felt — real travel, a clean actuation point, and an unambiguous readout the moment it registers.</p>
+
+    <div class="instrument" id="instrument">
+      <!-- travel gauge -->
+      <div class="gauge" aria-hidden="true">
+        <span class="rail"></span>
+        <span class="tick major" style="top:6px"></span>
+        <span class="label"  style="top:6px">0.0</span>
+        <span class="tick" style="top:40px"></span>
+        <span class="tick" style="top:74px"></span>
+        <span class="tick major" style="top:108px"></span>
+        <span class="label"  style="top:108px">7.0mm</span>
+        <span class="cursor" id="cursor"></span>
+      </div>
+
+      <!-- the button -->
+      <div class="actuator">
+        <button
+          class="key"
+          id="submitBtn"
+          data-testid="submit-button"
+          aria-label="Submit"
+          aria-describedby="status">
+          <span class="lamp" aria-hidden="true"></span>Submit
+        </button>
+      </div>
+
+      <!-- datasheet spec -->
+      <dl class="spec" aria-hidden="true">
+        <dt>Travel</dt><dd>7.0 mm</dd>
+        <dt>Force</dt><dd>1 click</dd>
+        <dt>Type</dt><dd>Momentary</dd>
+      </dl>
+    </div>
+
+    <div class="readout">
+      <span>Status</span>
+      <span class="state" id="status" role="status" aria-live="polite">Idle</span>
+      <span class="bar" id="bar" aria-hidden="true"></span>
+    </div>
+  </main>
+
+  <script>
+    "use strict";
+    const instrument = document.getElementById("instrument");
+    const btn    = document.getElementById("submitBtn");
+    const cursor = document.getElementById("cursor");
+    const status = document.getElementById("status");
+    const bar    = document.getElementById("bar");
+
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let busy = false;
+
+    // Drive the key + travel gauge together (0 rest → 1 fully pressed)
+    function setPress(down){
+      instrument.classList.toggle("pressed", down);
+      cursor.style.setProperty("--p", down ? 1 : 0);
+    }
+
+    // Pointer travel: hold shows depression, release lets it spring back
+    btn.addEventListener("pointerdown", () => { if(!busy) setPress(true); });
+    ["pointerup","pointerleave","pointercancel"].forEach(ev =>
+      btn.addEventListener(ev, () => { if(!busy) setPress(false); }));
+
+    // Keyboard travel mirrors the pointer feel
+    btn.addEventListener("keydown", e => {
+      if((e.key === " " || e.key === "Enter") && !busy) setPress(true);
+    });
+    btn.addEventListener("keyup", e => {
+      if((e.key === " " || e.key === "Enter") && !busy) setPress(false);
+    });
+
+    btn.addEventListener("click", submit);
+
+    function setBar(v){ bar.style.setProperty("--fill", v); }
+
+    function submit(){
+      if(busy) return;
+      busy = true;
+      instrument.classList.remove("sent");
+
+      // ARMED — the click is registered, work is in flight
+      status.textContent = "Armed";
+      setBar(0.45);
+      const dwell = reduce ? 0 : 520;
+
+      window.setTimeout(() => {
+        // SENT — actuation confirmed; the one green moment
+        instrument.classList.add("sent");
+        setPress(false);
+        status.textContent = "Sent";
+        setBar(1);
+
+        window.setTimeout(() => {  // reset to idle, ready for the next press
+          instrument.classList.remove("sent");
+          status.textContent = "Idle";
+          setBar(0);
+          busy = false;
+        }, reduce ? 900 : 1800);
+      }, dwell);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,151 @@
+/* Capitals — Field Test.  Extends button.css (the Actuator instrument). */
+
+:root{
+  --fault:#D93A2B;   /* the reject lamp — green confirms, red rejects */
+}
+
+/* ---- Prompt ---------------------------------------------------- */
+.eyebrow{
+  display:flex;align-items:center;gap:10px;
+  font-family:var(--f-mono);font-size:11px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--graphite);margin-bottom:14px;
+}
+.eyebrow::before{content:"";width:20px;height:1px;background:var(--faint);}
+
+.country{
+  font-family:var(--f-display);font-weight:600;
+  font-size:clamp(38px,8vw,68px);line-height:1;letter-spacing:-.03em;
+  margin:0 0 clamp(26px,5vw,40px);color:var(--ink);
+}
+
+/* ---- Range selector (start screen) ---------------------------- */
+.range-list{
+  border-top:1px solid var(--hairline);
+}
+.range-row{
+  position:relative;display:flex;align-items:baseline;justify-content:space-between;gap:16px;
+  width:100%;text-align:left;cursor:pointer;
+  background:transparent;border:0;border-bottom:1px solid var(--hairline);
+  padding:17px 4px 17px 4px;color:var(--ink);
+  font-family:var(--f-display);font-weight:500;font-size:clamp(18px,3.6vw,25px);
+  letter-spacing:-.02em;
+  transition:padding-left .16s ease,background .16s ease;
+}
+.range-row .n{
+  font-family:var(--f-mono);font-size:11px;font-weight:400;letter-spacing:.1em;
+  color:var(--faint);white-space:nowrap;transition:color .16s;
+}
+.range-row:hover,.range-row:focus-visible{padding-left:16px;outline:none;}
+.range-row:hover .n,.range-row:focus-visible .n{color:var(--ink);}
+.range-row:focus-visible{box-shadow:inset 3px 0 0 var(--ink);}
+.range-row.all .rn{color:var(--ink);}
+.range-row.all{background:linear-gradient(var(--paper),var(--paper));}
+
+/* ---- Answer field --------------------------------------------- */
+.field{
+  position:relative;margin-bottom:clamp(30px,6vw,48px);
+}
+.field .field-label{
+  font-family:var(--f-mono);font-size:10px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--faint);display:block;margin-bottom:10px;
+}
+.capital{
+  width:100%;appearance:none;background:transparent;border:0;
+  border-bottom:1px solid var(--hairline);
+  font-family:var(--f-body);font-size:clamp(20px,4vw,26px);
+  color:var(--ink);padding:6px 2px 12px;letter-spacing:-.01em;
+  transition:border-color .18s;
+}
+.capital::placeholder{color:var(--faint);}
+.capital:focus{outline:none;border-bottom-color:var(--ink);}
+.capital:disabled{color:var(--graphite);}
+.field.fault .capital{border-bottom-color:var(--fault);}
+
+/* nudge on reject */
+@keyframes reject{
+  0%,100%{transform:translateX(0);}
+  20%{transform:translateX(-6px);}
+  40%{transform:translateX(5px);}
+  60%{transform:translateX(-3px);}
+  80%{transform:translateX(2px);}
+}
+.field.shake .capital{animation:reject .34s ease;}
+
+/* ---- Fault state on the shared instrument --------------------- */
+.instrument.fault .gauge .cursor{border-color:var(--fault);}
+.instrument.fault .key{background:var(--ink);color:var(--paper);}
+.instrument.fault .key .lamp{
+  background:var(--fault);box-shadow:0 0 0 3px rgba(217,58,43,.28);
+}
+.instrument.fault ~ .readout .state{color:var(--fault);}
+.instrument.fault ~ .readout .bar::after{background:var(--fault);}
+
+/* ---- Feedback readout ----------------------------------------- */
+.feedback{
+  min-height:20px;margin-top:14px;
+  font-family:var(--f-mono);font-size:12px;letter-spacing:.06em;color:var(--graphite);
+}
+.feedback .ok{color:var(--signal);}
+.feedback .no{color:var(--fault);}
+.feedback b{color:var(--ink);font-weight:500;}
+
+/* live stat block (reuses .spec from button.css) */
+.spec .val{color:var(--ink);}
+
+/* ---- Results -------------------------------------------------- */
+.results{text-align:center;padding:8px 0 4px;}
+.results .score{
+  font-family:var(--f-display);font-weight:700;
+  font-size:clamp(56px,14vw,110px);line-height:.9;letter-spacing:-.04em;
+  margin:0 0 8px;
+}
+.results .score .of{color:var(--faint);}
+.results .grade{
+  font-family:var(--f-mono);font-size:12px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--graphite);margin:0 0 34px;
+}
+.results .grade{margin-bottom:clamp(20px,4vw,30px);}
+
+/* end-of-test review list */
+.review{text-align:left;margin:0 0 clamp(26px,5vw,38px);}
+.review-head{
+  font-family:var(--f-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--fault);margin:0 0 4px;padding-bottom:10px;border-bottom:1px solid var(--hairline);
+}
+.review-scroll{max-height:min(44vh,340px);overflow:auto;}
+.review-row{
+  display:flex;align-items:baseline;justify-content:space-between;gap:16px;
+  padding:11px 2px;border-bottom:1px solid var(--hairline);
+}
+.review-row .rc{font-family:var(--f-body);font-size:15px;color:var(--graphite);}
+.review-row .ra{font-family:var(--f-mono);font-size:14px;color:var(--ink);text-align:right;}
+.review-clean{
+  font-family:var(--f-mono);font-size:13px;letter-spacing:.06em;color:var(--signal);
+  padding:14px 0;border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline);margin:0;
+}
+
+.results .again{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;}
+
+/* quieter secondary action — a flat, hairline-outlined key */
+.key.ghost{
+  background:transparent;color:var(--ink);
+  box-shadow:inset 0 0 0 1px var(--hairline);
+}
+.key.ghost .lamp{background:var(--faint);box-shadow:none;}
+.key.ghost:hover{box-shadow:inset 0 0 0 1px var(--graphite);}
+.key.ghost:active{
+  transform:translateY(1px);
+  box-shadow:inset 0 0 0 1px var(--graphite);
+}
+
+/* the standalone results button isn't inside an .instrument, so give the
+   shared .key its travel on :active directly (matches the pressed state) */
+.key:active{
+  transform:translateY(var(--travel));
+  box-shadow:
+    0 1px 0 #303436 inset,
+    0 0 0 var(--key-edge),
+    0 3px 8px rgba(5,6,7,.3);
+}
+
+.hidden{display:none !important;}

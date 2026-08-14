@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rank the system design stack</title>
+<style>
+  :root{
+    --bg:#f4f5f7;
+    --ink:#111418;
+    --muted:#8b9099;
+    --blue:#2563eb;
+    --card:#ffffff;
+    --line:#e6e8ec;
+    --chip-line:#e2e5ea;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);
+    background-color:var(--bg);
+    background-image:radial-gradient(var(--line) 1px, transparent 1px);
+    background-size:22px 22px;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  .wrap{max-width:960px;margin:0 auto;padding:40px 24px 220px;}
+
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+
+  .eyebrow{
+    font-size:12px;letter-spacing:.22em;color:var(--muted);
+    text-transform:uppercase;margin-bottom:18px;display:flex;align-items:center;gap:10px;
+  }
+  .eyebrow::before{content:"";width:22px;height:1px;background:var(--muted);display:inline-block;}
+
+  h1{
+    font-size:52px;line-height:1.04;font-weight:800;letter-spacing:-.02em;
+    margin:0 0 18px;
+  }
+  h1 .hl{color:var(--blue);}
+
+  .sub{font-size:17px;line-height:1.5;color:#4a4f57;max-width:640px;margin:0 0 20px;}
+
+  .peek{
+    background:none;border:none;padding:0;cursor:pointer;
+    font-size:13px;color:var(--blue);letter-spacing:.02em;
+  }
+  .peek.active{text-decoration:underline;}
+
+  /* Tiers */
+  .board{margin-top:34px;display:flex;flex-direction:column;gap:16px;}
+  .tier{
+    display:flex;align-items:stretch;background:var(--card);
+    border-radius:16px;overflow:hidden;box-shadow:0 1px 2px rgba(16,24,40,.04);
+    border:1px solid var(--line);min-height:96px;
+  }
+  .tier-label{
+    flex:0 0 84px;display:flex;align-items:center;justify-content:center;
+    font-size:34px;font-weight:800;color:#fff;
+  }
+  .drop{
+    flex:1;display:flex;flex-wrap:wrap;gap:10px;align-content:center;
+    padding:14px 16px;transition:background .12s;
+  }
+  .drop.over{background:#eef4ff;}
+
+  /* Tray */
+  .tray{
+    position:fixed;left:0;right:0;bottom:0;background:var(--card);
+    border-top:1px solid var(--line);box-shadow:0 -6px 24px rgba(16,24,40,.06);
+    padding:14px 24px 18px;z-index:20;
+  }
+  .tray-inner{max-width:960px;margin:0 auto;}
+  .tray-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:12px;}
+  .tray-head .t{}
+  .tray-head .k{font-size:11px;letter-spacing:.18em;color:var(--muted);text-transform:uppercase;}
+  .tray-head .d{font-size:14px;color:#4a4f57;margin-top:2px;}
+  .actions{display:flex;gap:10px;}
+  .btn{
+    font-size:14px;font-weight:600;border-radius:10px;padding:9px 16px;cursor:pointer;
+    border:1px solid var(--line);background:#fff;color:var(--ink);transition:filter .12s,background .12s;
+  }
+  .btn:hover{background:#f7f8fa;}
+  .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;}
+  .btn.primary:hover{filter:brightness(1.06);background:var(--blue);}
+  .btn:focus-visible,.chip:focus-visible,.peek:focus-visible{
+    outline:2px solid var(--blue);outline-offset:2px;
+  }
+
+  .tray-drop{
+    display:flex;gap:10px;overflow-x:auto;padding:4px 2px 8px;
+    scrollbar-width:thin;min-height:56px;align-items:center;
+  }
+  .tray-drop.over{background:#eef4ff;border-radius:12px;}
+
+  /* Chips */
+  .chip{
+    display:inline-flex;align-items:center;gap:9px;white-space:nowrap;
+    background:#fff;border:1px solid var(--chip-line);border-radius:999px;
+    padding:9px 15px;font-size:14px;font-weight:600;cursor:grab;
+    box-shadow:0 1px 2px rgba(16,24,40,.05);user-select:none;
+  }
+  .chip:active{cursor:grabbing;}
+  .chip.dragging{opacity:.4;}
+  .chip .ic{
+    width:22px;height:22px;border-radius:6px;display:inline-flex;
+    align-items:center;justify-content:center;font-size:13px;color:#fff;flex:0 0 auto;
+  }
+  .board .chip{box-shadow:0 1px 3px rgba(16,24,40,.09);}
+
+  /* definition popover */
+  .peekmode .chip{cursor:help;}
+  .def{
+    position:fixed;z-index:40;max-width:280px;background:#111418;color:#fff;
+    font-size:13px;line-height:1.45;padding:10px 12px;border-radius:10px;
+    box-shadow:0 8px 30px rgba(0,0,0,.25);pointer-events:none;opacity:0;transform:translateY(4px);
+    transition:opacity .12s,transform .12s;
+  }
+  .def.show{opacity:1;transform:translateY(0);}
+  .def b{color:#8fb4ff;}
+
+  @media (max-width:640px){
+    h1{font-size:36px;}
+    .tier-label{flex-basis:64px;font-size:26px;}
+    .wrap{padding:28px 16px 240px;}
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="eyebrow mono">TOOL · FIG B</div>
+    <h1>Rank the <span class="hl">system design</span> stack.</h1>
+    <p class="sub">Drag each concept into a tier. When you're happy with it, download a shareable image or copy it to your clipboard.</p>
+    <button class="peek mono" id="peekBtn">→ Tap a concept to see what it is</button>
+
+    <div class="board" id="board"></div>
+  </div>
+
+  <div class="tray">
+    <div class="tray-inner">
+      <div class="tray-head">
+        <div class="t">
+          <div class="k mono">Unranked</div>
+          <div class="d">Drag into a tier above ↑</div>
+        </div>
+        <div class="actions">
+          <button class="btn" id="resetBtn">Reset</button>
+          <button class="btn primary" id="downloadBtn">Download PNG</button>
+        </div>
+      </div>
+      <div class="tray-drop" id="tray" data-tier="unranked"></div>
+    </div>
+  </div>
+
+  <div class="def" id="def"></div>
+
+<script>
+"use strict";
+
+/* ---- Data ---- */
+const TIERS = [
+  { id:"S", color:"#e63946" },
+  { id:"A", color:"#f4802a" },
+  { id:"B", color:"#f0b429" },
+  { id:"C", color:"#2f9e44" },
+  { id:"D", color:"#2b8ac6" },
+  { id:"F", color:"#6b7280" },
+];
+
+const CONCEPTS = [
+  { id:"graphql",   name:"GraphQL",               icon:"◆", color:"#e535ab", def:"A query language for APIs that lets clients request exactly the data they need in a single round trip." },
+  { id:"micro",     name:"Microservices",         icon:"⬡", color:"#4285f4", def:"Splitting an app into small, independently deployable services that each own one capability." },
+  { id:"realtime",  name:"Real-time Architecture",icon:"⚡", color:"#111418", def:"Pushing data to clients the instant it changes using WebSockets, SSE, or pub/sub instead of polling." },
+  { id:"search",    name:"Search",                icon:"🔍", color:"#f0b429", def:"Inverted-index engines (e.g. Elasticsearch) that make large text corpora fast to query and rank." },
+  { id:"serverless",name:"Serverless",            icon:"λ", color:"#f4802a", def:"Running code in managed, auto-scaling functions so you never provision or maintain servers." },
+  { id:"objstore",  name:"Object Storage",        icon:"☁", color:"#2f9e44", def:"Storing files as objects in a flat namespace (e.g. S3) — cheap, durable, and massively scalable." },
+  { id:"cache",     name:"Caching",               icon:"⚑", color:"#e63946", def:"Keeping hot data in fast memory (Redis, CDN edge) to cut latency and load on the source." },
+  { id:"lb",        name:"Load Balancer",         icon:"⇄", color:"#2b8ac6", def:"Distributing incoming traffic across many servers for availability and horizontal scale." },
+  { id:"mq",        name:"Message Queue",         icon:"✉", color:"#8b5cf6", def:"Decoupling producers and consumers with a durable buffer (Kafka, SQS) for async, resilient work." },
+  { id:"cdn",       name:"CDN",                   icon:"◎", color:"#06b6d4", def:"A global edge network that serves static assets close to users to slash latency." },
+  { id:"sql",       name:"SQL",                   icon:"▤", color:"#0d5eaf", def:"Relational databases with schemas, joins, and ACID transactions for structured, consistent data." },
+  { id:"nosql",     name:"NoSQL",                 icon:"◈", color:"#13aa52", def:"Non-relational stores (document, key-value, wide-column) tuned for scale and flexible schemas." },
+];
+
+const CONCEPT_MAP = Object.fromEntries(CONCEPTS.map(c => [c.id, c]));
+const STORAGE_KEY = "sd-tierlist-v1";
+
+/* state: tierId -> [conceptId]. "unranked" holds the tray. */
+let state = loadState();
+
+function defaultState(){
+  const s = { unranked: CONCEPTS.map(c => c.id) };
+  TIERS.forEach(t => s[t.id] = []);
+  return s;
+}
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return defaultState();
+    const parsed = JSON.parse(raw);
+    // validate & repair: every concept appears exactly once
+    const seen = new Set();
+    const s = { unranked: [] };
+    TIERS.forEach(t => s[t.id] = []);
+    ["unranked", ...TIERS.map(t=>t.id)].forEach(k => {
+      (parsed[k] || []).forEach(id => {
+        if(CONCEPT_MAP[id] && !seen.has(id)){ s[k].push(id); seen.add(id); }
+      });
+    });
+    CONCEPTS.forEach(c => { if(!seen.has(c.id)) s.unranked.push(c.id); });
+    return s;
+  }catch(e){ return defaultState(); }
+}
+function saveState(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+}
+
+/* ---- Build DOM ---- */
+const board = document.getElementById("board");
+const tray  = document.getElementById("tray");
+const defEl = document.getElementById("def");
+const peekBtn = document.getElementById("peekBtn");
+
+TIERS.forEach(t => {
+  const row = document.createElement("div");
+  row.className = "tier";
+  row.innerHTML =
+    `<div class="tier-label" style="background:${t.color}">${t.id}</div>`;
+  const drop = document.createElement("div");
+  drop.className = "drop";
+  drop.dataset.tier = t.id;
+  row.appendChild(drop);
+  board.appendChild(row);
+  wireDropzone(drop);
+});
+wireDropzone(tray);
+
+function makeChip(id){
+  const c = CONCEPT_MAP[id];
+  const chip = document.createElement("div");
+  chip.className = "chip";
+  chip.draggable = true;
+  chip.dataset.id = id;
+  chip.setAttribute("role","button");
+  chip.tabIndex = 0;
+  chip.innerHTML = `<span class="ic" style="background:${c.color}">${c.icon}</span>${c.name}`;
+  updateChipAria(chip);
+
+  chip.addEventListener("dragstart", e => {
+    e.dataTransfer.setData("text/plain", id);
+    e.dataTransfer.effectAllowed = "move";
+    chip.classList.add("dragging");
+  });
+  chip.addEventListener("dragend", () => chip.classList.remove("dragging"));
+
+  chip.addEventListener("click", () => {
+    if(peekMode){ /* handled by mousemove popover */ return; }
+    // click-to-cycle fallback (mobile / no-drag)
+    moveConcept(id, nextTier(currentTier(id)));
+  });
+  chip.addEventListener("keydown", e => {
+    const cur = currentTier(id);
+    if(e.key === "Enter" || e.key === " "){ e.preventDefault(); moveConcept(id, nextTier(cur)); }
+    else if(e.key === "ArrowUp"){ e.preventDefault(); moveConcept(id, prevTier(cur)); }
+    else if(e.key === "ArrowDown"){ e.preventDefault(); moveConcept(id, nextTier(cur)); }
+  });
+
+  // definition popover in peek mode
+  chip.addEventListener("mouseenter", e => { if(peekMode) showDef(c, e); });
+  chip.addEventListener("mousemove",  e => { if(peekMode) positionDef(e); });
+  chip.addEventListener("mouseleave", () => hideDef());
+  chip.addEventListener("focus", e => { if(peekMode) showDefAtEl(c, chip); });
+  chip.addEventListener("blur", () => hideDef());
+
+  return chip;
+}
+
+function updateChipAria(chip){
+  const id = chip.dataset.id;
+  const t = currentTier(id);
+  const where = t === "unranked" ? "unranked" : "tier " + t;
+  chip.setAttribute("aria-label", `${CONCEPT_MAP[id].name}, currently ${where}. Press Enter to move to the next tier.`);
+}
+
+/* ---- Tier order helpers ---- */
+const ORDER = ["unranked", ...TIERS.map(t=>t.id)];
+function currentTier(id){
+  return ORDER.find(k => state[k].includes(id));
+}
+function nextTier(t){
+  const i = ORDER.indexOf(t);
+  // unranked -> S -> A -> ... -> F -> unranked
+  return ORDER[(i + 1) % ORDER.length];
+}
+function prevTier(t){
+  const i = ORDER.indexOf(t);
+  return ORDER[(i - 1 + ORDER.length) % ORDER.length];
+}
+
+/* ---- Move + render ---- */
+function moveConcept(id, toTier, toIndex){
+  const from = currentTier(id);
+  if(from === undefined) return;
+  state[from] = state[from].filter(x => x !== id);
+  if(typeof toIndex === "number"){
+    state[toTier].splice(toIndex, 0, id);
+  } else {
+    state[toTier].push(id);
+  }
+  saveState();
+  render();
+}
+
+function render(){
+  ORDER.forEach(k => {
+    const container = k === "unranked" ? tray : board.querySelector(`.drop[data-tier="${k}"]`);
+    container.querySelectorAll(".chip").forEach(n => n.remove());
+    state[k].forEach(id => container.appendChild(makeChip(id)));
+  });
+}
+
+/* ---- Dropzones ---- */
+function wireDropzone(zone){
+  zone.addEventListener("dragover", e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    zone.classList.add("over");
+  });
+  zone.addEventListener("dragleave", e => {
+    if(e.target === zone) zone.classList.remove("over");
+  });
+  zone.addEventListener("drop", e => {
+    e.preventDefault();
+    zone.classList.remove("over");
+    const id = e.dataTransfer.getData("text/plain");
+    if(!id) return;
+    const toTier = zone.dataset.tier;
+    // insert relative to the chip we dropped on
+    const after = e.target.closest(".chip");
+    if(after && after.dataset.id !== id){
+      const idx = state[toTier].indexOf(after.dataset.id);
+      moveConcept(id, toTier, idx + 1);
+    } else {
+      moveConcept(id, toTier);
+    }
+  });
+}
+
+/* ---- Peek / definitions ---- */
+let peekMode = false;
+peekBtn.addEventListener("click", () => {
+  peekMode = !peekMode;
+  peekBtn.classList.toggle("active", peekMode);
+  document.body.classList.toggle("peekmode", peekMode);
+  peekBtn.textContent = peekMode
+    ? "→ Hover a concept to read its definition (on)"
+    : "→ Tap a concept to see what it is";
+  if(!peekMode) hideDef();
+});
+function showDef(c, e){
+  defEl.innerHTML = `<b>${c.name}</b><br>${c.def}`;
+  defEl.classList.add("show");
+  positionDef(e);
+}
+function showDefAtEl(c, el){
+  const r = el.getBoundingClientRect();
+  defEl.innerHTML = `<b>${c.name}</b><br>${c.def}`;
+  defEl.classList.add("show");
+  defEl.style.left = Math.min(r.left, window.innerWidth - 300) + "px";
+  defEl.style.top  = Math.max(r.top - defEl.offsetHeight - 10, 8) + "px";
+}
+function positionDef(e){
+  const pad = 14;
+  let x = e.clientX + pad, y = e.clientY + pad;
+  if(x + 300 > window.innerWidth) x = e.clientX - 300;
+  if(y + 90 > window.innerHeight) y = e.clientY - 90;
+  defEl.style.left = x + "px";
+  defEl.style.top  = y + "px";
+}
+function hideDef(){ defEl.classList.remove("show"); }
+
+/* ---- Reset ---- */
+document.getElementById("resetBtn").addEventListener("click", () => {
+  state = defaultState();
+  saveState();
+  render();
+});
+
+/* ---- Download PNG (hand-drawn canvas) ---- */
+document.getElementById("downloadBtn").addEventListener("click", downloadPNG);
+
+function roundRect(ctx, x, y, w, h, r){
+  r = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.arcTo(x+w, y,   x+w, y+h, r);
+  ctx.arcTo(x+w, y+h, x,   y+h, r);
+  ctx.arcTo(x,   y+h, x,   y,   r);
+  ctx.arcTo(x,   y,   x+w, y,   r);
+  ctx.closePath();
+}
+
+function downloadPNG(){
+  const scale = 2;
+  const W = 1000, pad = 40, labelW = 88, rowGap = 16, rowH = 108;
+  const titleH = 130;
+  const H = titleH + TIERS.length * (rowH + rowGap) + pad;
+  const cv = document.createElement("canvas");
+  cv.width = W * scale; cv.height = H * scale;
+  const ctx = cv.getContext("2d");
+  ctx.scale(scale, scale);
+  ctx.textBaseline = "middle";
+
+  // background
+  ctx.fillStyle = "#f4f5f7";
+  ctx.fillRect(0,0,W,H);
+
+  // title
+  ctx.fillStyle = "#111418";
+  ctx.font = "800 40px -apple-system,Segoe UI,Roboto,Arial,sans-serif";
+  ctx.textAlign = "left";
+  const t1 = "Rank the ";
+  ctx.fillText(t1, pad, 56);
+  const w1 = ctx.measureText(t1).width;
+  ctx.fillStyle = "#2563eb";
+  const t2 = "system design";
+  ctx.fillText(t2, pad + w1, 56);
+  const w2 = ctx.measureText(t2).width;
+  ctx.fillStyle = "#111418";
+  ctx.fillText(" stack.", pad + w1 + w2, 56);
+  ctx.fillStyle = "#8b9099";
+  ctx.font = "13px ui-monospace,Menlo,Consolas,monospace";
+  ctx.fillText("TOOL · FIG B  —  systemdesign.tierlist", pad, 92);
+
+  // rows
+  let y = titleH;
+  TIERS.forEach(t => {
+    // card
+    ctx.fillStyle = "#ffffff";
+    roundRect(ctx, pad, y, W - pad*2, rowH, 16); ctx.fill();
+    ctx.strokeStyle = "#e6e8ec"; ctx.lineWidth = 1; ctx.stroke();
+    // label
+    ctx.save();
+    roundRect(ctx, pad, y, labelW, rowH, 16); ctx.clip();
+    ctx.fillStyle = t.color; ctx.fillRect(pad, y, labelW, rowH);
+    ctx.restore();
+    ctx.fillStyle = "#fff";
+    ctx.font = "800 34px -apple-system,Segoe UI,Roboto,Arial,sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(t.id, pad + labelW/2, y + rowH/2 + 2);
+
+    // chips
+    ctx.textAlign = "left";
+    let cx = pad + labelW + 18, cy = y + rowH/2;
+    let line = 0;
+    state[t.id].forEach(id => {
+      const c = CONCEPT_MAP[id];
+      ctx.font = "600 16px -apple-system,Segoe UI,Roboto,Arial,sans-serif";
+      const tw = ctx.measureText(c.name).width;
+      const chipW = tw + 54;
+      if(cx + chipW > W - pad - 8 && cx > pad + labelW + 18){
+        line++; cx = pad + labelW + 18; cy = y + rowH/2 + line*38 - (line>0?14:0);
+      }
+      const chY = cy - 16;
+      // pill
+      ctx.fillStyle = "#fff";
+      roundRect(ctx, cx, chY, chipW, 32, 16); ctx.fill();
+      ctx.strokeStyle = "#e2e5ea"; ctx.lineWidth = 1; ctx.stroke();
+      // icon
+      ctx.fillStyle = c.color;
+      roundRect(ctx, cx + 8, chY + 6, 20, 20, 6); ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.font = "12px -apple-system,Segoe UI,Roboto,Arial,sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(c.icon, cx + 18, chY + 17);
+      // name
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#111418";
+      ctx.font = "600 16px -apple-system,Segoe UI,Roboto,Arial,sans-serif";
+      ctx.fillText(c.name, cx + 34, chY + 17);
+      cx += chipW + 10;
+    });
+
+    y += rowH + rowGap;
+  });
+
+  const url = cv.toDataURL("image/png");
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "system-design-tierlist.png";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+/* ---- go ---- */
+render();
+</script>
+</body>
+</html>

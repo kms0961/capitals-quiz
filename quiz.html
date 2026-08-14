@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Capitals — Field Test</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="button.css">
+  <link rel="stylesheet" href="quiz.css">
+</head>
+<body>
+  <main class="panel">
+    <div class="masthead">
+      <span id="rangeLabel">Capitals · Field Test</span>
+      <span class="fig">Fig.02</span>
+    </div>
+
+    <!-- ============ START / RANGE SELECT ============ -->
+    <section id="startView">
+      <p class="eyebrow">Select a range</p>
+      <h1 class="country" style="margin-bottom:clamp(22px,5vw,34px)">Choose your field.</h1>
+      <div class="range-list" id="rangeList"></div>
+    </section>
+
+    <!-- ============ QUIZ ============ -->
+    <section id="quizView" class="hidden">
+      <p class="eyebrow">Name the capital of</p>
+      <h1 class="country" id="country">—</h1>
+
+      <div class="field" id="field">
+        <label class="field-label" for="capital">Capital</label>
+        <input
+          class="capital"
+          id="capital"
+          type="text"
+          autocomplete="off"
+          autocapitalize="words"
+          spellcheck="false"
+          placeholder="Type your answer"
+          aria-describedby="feedback">
+      </div>
+
+      <div class="instrument" id="instrument">
+        <!-- travel gauge -->
+        <div class="gauge" aria-hidden="true">
+          <span class="rail"></span>
+          <span class="tick major" style="top:6px"></span>
+          <span class="label" style="top:6px">0.0</span>
+          <span class="tick" style="top:40px"></span>
+          <span class="tick" style="top:74px"></span>
+          <span class="tick major" style="top:108px"></span>
+          <span class="label" style="top:108px">7.0mm</span>
+          <span class="cursor" id="cursor"></span>
+        </div>
+
+        <!-- the shared Actuator -->
+        <div class="actuator">
+          <button class="key" id="submitBtn" data-testid="submit-button" aria-label="Submit answer">
+            <span class="lamp" aria-hidden="true"></span><span class="lbl">Submit</span>
+          </button>
+        </div>
+
+        <!-- live readout -->
+        <dl class="spec" aria-hidden="true">
+          <dt>Question</dt><dd><span class="val" id="qNum">1</span>/<span id="qTot">0</span></dd>
+          <dt>Score</dt><dd class="val" id="qScore">0</dd>
+          <dt>Streak</dt><dd class="val" id="qStreak">0</dd>
+        </dl>
+      </div>
+
+      <div class="readout">
+        <span>Status</span>
+        <span class="state" id="status" role="status" aria-live="polite">Awaiting</span>
+        <span class="bar" id="bar" aria-hidden="true"></span>
+      </div>
+
+      <p class="feedback" id="feedback" role="status" aria-live="polite"></p>
+    </section>
+
+    <!-- ============ RESULTS ============ -->
+    <section id="resultsView" class="results hidden">
+      <p class="eyebrow">Field test complete</p>
+      <p class="score"><span id="finalScore">0</span><span class="of">/<span id="finalTot">0</span></span></p>
+      <p class="grade" id="grade">—</p>
+
+      <div class="review" id="review"></div>
+
+      <div class="again">
+        <button class="key hidden" id="retryBtn" aria-label="Retry the missed capitals">
+          <span class="lamp" aria-hidden="true"></span><span class="lbl">Retry missed</span>
+        </button>
+        <button class="key" id="newBtn" aria-label="Start a new test">
+          <span class="lamp" aria-hidden="true"></span><span class="lbl">New test</span>
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    "use strict";
+
+    /* ---- Data · all 195 sovereign states (193 UN members + Vatican City & Palestine) ---- */
+    const COUNTRIES = [
+      /* ---------- Africa (54) ---------- */
+      { c:"Algeria", cap:"Algiers", k:"Africa", alt:["alger"] },
+      { c:"Angola", cap:"Luanda", k:"Africa" },
+      { c:"Benin", cap:"Porto-Novo", k:"Africa", alt:["cotonou"] },
+      { c:"Botswana", cap:"Gaborone", k:"Africa" },
+      { c:"Burkina Faso", cap:"Ouagadougou", k:"Africa" },
+      { c:"Burundi", cap:"Gitega", k:"Africa", alt:["bujumbura"] },
+      { c:"Cabo Verde", cap:"Praia", k:"Africa" },
+      { c:"Cameroon", cap:"Yaoundé", k:"Africa", alt:["yaounde"] },
+      { c:"Central African Republic", cap:"Bangui", k:"Africa" },
+      { c:"Chad", cap:"N'Djamena", k:"Africa", alt:["ndjamena"] },
+      { c:"Comoros", cap:"Moroni", k:"Africa" },
+      { c:"Republic of the Congo", cap:"Brazzaville", k:"Africa" },
+      { c:"DR Congo", cap:"Kinshasa", k:"Africa" },
+      { c:"Côte d'Ivoire", cap:"Yamoussoukro", k:"Africa", alt:["abidjan"] },
+      { c:"Djibouti", cap:"Djibouti", k:"Africa" },
+      { c:"Egypt", cap:"Cairo", k:"Africa" },
+      { c:"Equatorial Guinea", cap:"Malabo", k:"Africa" },
+      { c:"Eritrea", cap:"Asmara", k:"Africa" },
+      { c:"Eswatini", cap:"Mbabane", k:"Africa", alt:["lobamba"] },
+      { c:"Ethiopia", cap:"Addis Ababa", k:"Africa" },
+      { c:"Gabon", cap:"Libreville", k:"Africa" },
+      { c:"Gambia", cap:"Banjul", k:"Africa" },
+      { c:"Ghana", cap:"Accra", k:"Africa" },
+      { c:"Guinea", cap:"Conakry", k:"Africa" },
+      { c:"Guinea-Bissau", cap:"Bissau", k:"Africa" },
+      { c:"Kenya", cap:"Nairobi", k:"Africa" },
+      { c:"Lesotho", cap:"Maseru", k:"Africa" },
+      { c:"Liberia", cap:"Monrovia", k:"Africa" },
+      { c:"Libya", cap:"Tripoli", k:"Africa" },
+      { c:"Madagascar", cap:"Antananarivo", k:"Africa" },
+      { c:"Malawi", cap:"Lilongwe", k:"Africa" },
+      { c:"Mali", cap:"Bamako", k:"Africa" },
+      { c:"Mauritania", cap:"Nouakchott", k:"Africa" },
+      { c:"Mauritius", cap:"Port Louis", k:"Africa" },
+      { c:"Morocco", cap:"Rabat", k:"Africa" },
+      { c:"Mozambique", cap:"Maputo", k:"Africa" },
+      { c:"Namibia", cap:"Windhoek", k:"Africa" },
+      { c:"Niger", cap:"Niamey", k:"Africa" },
+      { c:"Nigeria", cap:"Abuja", k:"Africa" },
+      { c:"Rwanda", cap:"Kigali", k:"Africa" },
+      { c:"São Tomé and Príncipe", cap:"São Tomé", k:"Africa", alt:["sao tome"] },
+      { c:"Senegal", cap:"Dakar", k:"Africa" },
+      { c:"Seychelles", cap:"Victoria", k:"Africa" },
+      { c:"Sierra Leone", cap:"Freetown", k:"Africa" },
+      { c:"Somalia", cap:"Mogadishu", k:"Africa" },
+      { c:"South Africa", cap:"Pretoria", k:"Africa", alt:["cape town","bloemfontein"] },
+      { c:"South Sudan", cap:"Juba", k:"Africa" },
+      { c:"Sudan", cap:"Khartoum", k:"Africa" },
+      { c:"Tanzania", cap:"Dodoma", k:"Africa", alt:["dar es salaam"] },
+      { c:"Togo", cap:"Lomé", k:"Africa", alt:["lome"] },
+      { c:"Tunisia", cap:"Tunis", k:"Africa" },
+      { c:"Uganda", cap:"Kampala", k:"Africa" },
+      { c:"Zambia", cap:"Lusaka", k:"Africa" },
+      { c:"Zimbabwe", cap:"Harare", k:"Africa" },
+
+      /* ---------- Asia (48) ---------- */
+      { c:"Afghanistan", cap:"Kabul", k:"Asia" },
+      { c:"Armenia", cap:"Yerevan", k:"Asia" },
+      { c:"Azerbaijan", cap:"Baku", k:"Asia" },
+      { c:"Bahrain", cap:"Manama", k:"Asia" },
+      { c:"Bangladesh", cap:"Dhaka", k:"Asia" },
+      { c:"Bhutan", cap:"Thimphu", k:"Asia" },
+      { c:"Brunei", cap:"Bandar Seri Begawan", k:"Asia" },
+      { c:"Cambodia", cap:"Phnom Penh", k:"Asia" },
+      { c:"China", cap:"Beijing", k:"Asia", alt:["peking"] },
+      { c:"Cyprus", cap:"Nicosia", k:"Asia" },
+      { c:"Georgia", cap:"Tbilisi", k:"Asia" },
+      { c:"India", cap:"New Delhi", k:"Asia", alt:["delhi"] },
+      { c:"Indonesia", cap:"Jakarta", k:"Asia" },
+      { c:"Iran", cap:"Tehran", k:"Asia" },
+      { c:"Iraq", cap:"Baghdad", k:"Asia" },
+      { c:"Israel", cap:"Jerusalem", k:"Asia" },
+      { c:"Japan", cap:"Tokyo", k:"Asia" },
+      { c:"Jordan", cap:"Amman", k:"Asia" },
+      { c:"Kazakhstan", cap:"Astana", k:"Asia", alt:["nur-sultan","nursultan"] },
+      { c:"Kuwait", cap:"Kuwait City", k:"Asia" },
+      { c:"Kyrgyzstan", cap:"Bishkek", k:"Asia" },
+      { c:"Laos", cap:"Vientiane", k:"Asia" },
+      { c:"Lebanon", cap:"Beirut", k:"Asia" },
+      { c:"Malaysia", cap:"Kuala Lumpur", k:"Asia" },
+      { c:"Maldives", cap:"Malé", k:"Asia", alt:["male"] },
+      { c:"Mongolia", cap:"Ulaanbaatar", k:"Asia", alt:["ulan bator"] },
+      { c:"Myanmar", cap:"Naypyidaw", k:"Asia", alt:["nay pyi taw"] },
+      { c:"Nepal", cap:"Kathmandu", k:"Asia" },
+      { c:"North Korea", cap:"Pyongyang", k:"Asia" },
+      { c:"Oman", cap:"Muscat", k:"Asia" },
+      { c:"Pakistan", cap:"Islamabad", k:"Asia" },
+      { c:"Palestine", cap:"Ramallah", k:"Asia", alt:["east jerusalem","jerusalem"] },
+      { c:"Philippines", cap:"Manila", k:"Asia" },
+      { c:"Qatar", cap:"Doha", k:"Asia" },
+      { c:"Saudi Arabia", cap:"Riyadh", k:"Asia" },
+      { c:"Singapore", cap:"Singapore", k:"Asia" },
+      { c:"South Korea", cap:"Seoul", k:"Asia" },
+      { c:"Sri Lanka", cap:"Sri Jayawardenepura Kotte", k:"Asia", alt:["colombo","kotte"] },
+      { c:"Syria", cap:"Damascus", k:"Asia" },
+      { c:"Taiwan", cap:"Taipei", k:"Asia" },
+      { c:"Tajikistan", cap:"Dushanbe", k:"Asia" },
+      { c:"Thailand", cap:"Bangkok", k:"Asia" },
+      { c:"Timor-Leste", cap:"Dili", k:"Asia" },
+      { c:"Turkey", cap:"Ankara", k:"Asia" },
+      { c:"Turkmenistan", cap:"Ashgabat", k:"Asia" },
+      { c:"United Arab Emirates", cap:"Abu Dhabi", k:"Asia" },
+      { c:"Uzbekistan", cap:"Tashkent", k:"Asia" },
+      { c:"Vietnam", cap:"Hanoi", k:"Asia" },
+      { c:"Yemen", cap:"Sana'a", k:"Asia", alt:["sanaa"] },
+
+      /* ---------- Europe (44) ---------- */
+      { c:"Albania", cap:"Tirana", k:"Europe" },
+      { c:"Andorra", cap:"Andorra la Vella", k:"Europe" },
+      { c:"Austria", cap:"Vienna", k:"Europe", alt:["wien"] },
+      { c:"Belarus", cap:"Minsk", k:"Europe" },
+      { c:"Belgium", cap:"Brussels", k:"Europe", alt:["bruxelles","brussel"] },
+      { c:"Bosnia and Herzegovina", cap:"Sarajevo", k:"Europe" },
+      { c:"Bulgaria", cap:"Sofia", k:"Europe" },
+      { c:"Croatia", cap:"Zagreb", k:"Europe" },
+      { c:"Czechia", cap:"Prague", k:"Europe", alt:["praha"] },
+      { c:"Denmark", cap:"Copenhagen", k:"Europe", alt:["kobenhavn"] },
+      { c:"Estonia", cap:"Tallinn", k:"Europe" },
+      { c:"Finland", cap:"Helsinki", k:"Europe" },
+      { c:"France", cap:"Paris", k:"Europe" },
+      { c:"Germany", cap:"Berlin", k:"Europe" },
+      { c:"Greece", cap:"Athens", k:"Europe", alt:["athina"] },
+      { c:"Hungary", cap:"Budapest", k:"Europe" },
+      { c:"Iceland", cap:"Reykjavík", k:"Europe", alt:["reykjavik"] },
+      { c:"Ireland", cap:"Dublin", k:"Europe" },
+      { c:"Italy", cap:"Rome", k:"Europe", alt:["roma"] },
+      { c:"Kosovo", cap:"Pristina", k:"Europe", alt:["prishtina"] },
+      { c:"Latvia", cap:"Riga", k:"Europe" },
+      { c:"Liechtenstein", cap:"Vaduz", k:"Europe" },
+      { c:"Lithuania", cap:"Vilnius", k:"Europe" },
+      { c:"Luxembourg", cap:"Luxembourg", k:"Europe" },
+      { c:"Malta", cap:"Valletta", k:"Europe" },
+      { c:"Moldova", cap:"Chișinău", k:"Europe", alt:["chisinau"] },
+      { c:"Monaco", cap:"Monaco", k:"Europe" },
+      { c:"Montenegro", cap:"Podgorica", k:"Europe" },
+      { c:"Netherlands", cap:"Amsterdam", k:"Europe" },
+      { c:"North Macedonia", cap:"Skopje", k:"Europe" },
+      { c:"Norway", cap:"Oslo", k:"Europe" },
+      { c:"Poland", cap:"Warsaw", k:"Europe", alt:["warszawa"] },
+      { c:"Portugal", cap:"Lisbon", k:"Europe", alt:["lisboa"] },
+      { c:"Romania", cap:"Bucharest", k:"Europe", alt:["bucuresti"] },
+      { c:"Russia", cap:"Moscow", k:"Europe", alt:["moskva"] },
+      { c:"San Marino", cap:"San Marino", k:"Europe" },
+      { c:"Serbia", cap:"Belgrade", k:"Europe", alt:["beograd"] },
+      { c:"Slovakia", cap:"Bratislava", k:"Europe" },
+      { c:"Slovenia", cap:"Ljubljana", k:"Europe" },
+      { c:"Spain", cap:"Madrid", k:"Europe" },
+      { c:"Sweden", cap:"Stockholm", k:"Europe" },
+      { c:"Switzerland", cap:"Bern", k:"Europe", alt:["berne"] },
+      { c:"Ukraine", cap:"Kyiv", k:"Europe", alt:["kiev"] },
+      { c:"United Kingdom", cap:"London", k:"Europe" },
+      { c:"Vatican City", cap:"Vatican City", k:"Europe", alt:["vatican"] },
+
+      /* ---------- North America (23) ---------- */
+      { c:"Antigua and Barbuda", cap:"Saint John's", k:"North America", alt:["st johns"] },
+      { c:"Bahamas", cap:"Nassau", k:"North America" },
+      { c:"Barbados", cap:"Bridgetown", k:"North America" },
+      { c:"Belize", cap:"Belmopan", k:"North America" },
+      { c:"Canada", cap:"Ottawa", k:"North America" },
+      { c:"Costa Rica", cap:"San José", k:"North America", alt:["san jose"] },
+      { c:"Cuba", cap:"Havana", k:"North America", alt:["la habana"] },
+      { c:"Dominica", cap:"Roseau", k:"North America" },
+      { c:"Dominican Republic", cap:"Santo Domingo", k:"North America" },
+      { c:"El Salvador", cap:"San Salvador", k:"North America" },
+      { c:"Grenada", cap:"Saint George's", k:"North America", alt:["st georges"] },
+      { c:"Guatemala", cap:"Guatemala City", k:"North America" },
+      { c:"Haiti", cap:"Port-au-Prince", k:"North America" },
+      { c:"Honduras", cap:"Tegucigalpa", k:"North America" },
+      { c:"Jamaica", cap:"Kingston", k:"North America" },
+      { c:"Mexico", cap:"Mexico City", k:"North America", alt:["ciudad de mexico","cdmx"] },
+      { c:"Nicaragua", cap:"Managua", k:"North America" },
+      { c:"Panama", cap:"Panama City", k:"North America" },
+      { c:"Saint Kitts and Nevis", cap:"Basseterre", k:"North America" },
+      { c:"Saint Lucia", cap:"Castries", k:"North America" },
+      { c:"Saint Vincent and the Grenadines", cap:"Kingstown", k:"North America" },
+      { c:"Trinidad and Tobago", cap:"Port of Spain", k:"North America" },
+      { c:"United States", cap:"Washington", k:"North America", alt:["washington dc","washington d c"] },
+
+      /* ---------- South America (12) ---------- */
+      { c:"Argentina", cap:"Buenos Aires", k:"South America" },
+      { c:"Bolivia", cap:"Sucre", k:"South America", alt:["la paz"] },
+      { c:"Brazil", cap:"Brasília", k:"South America", alt:["brasilia"] },
+      { c:"Chile", cap:"Santiago", k:"South America" },
+      { c:"Colombia", cap:"Bogotá", k:"South America", alt:["bogota"] },
+      { c:"Ecuador", cap:"Quito", k:"South America" },
+      { c:"Guyana", cap:"Georgetown", k:"South America" },
+      { c:"Paraguay", cap:"Asunción", k:"South America", alt:["asuncion"] },
+      { c:"Peru", cap:"Lima", k:"South America" },
+      { c:"Suriname", cap:"Paramaribo", k:"South America" },
+      { c:"Uruguay", cap:"Montevideo", k:"South America" },
+      { c:"Venezuela", cap:"Caracas", k:"South America" },
+
+      /* ---------- Oceania (14) ---------- */
+      { c:"Australia", cap:"Canberra", k:"Oceania" },
+      { c:"Fiji", cap:"Suva", k:"Oceania" },
+      { c:"Kiribati", cap:"Tarawa", k:"Oceania", alt:["south tarawa"] },
+      { c:"Marshall Islands", cap:"Majuro", k:"Oceania" },
+      { c:"Micronesia", cap:"Palikir", k:"Oceania" },
+      { c:"Nauru", cap:"Yaren", k:"Oceania" },
+      { c:"New Zealand", cap:"Wellington", k:"Oceania" },
+      { c:"Palau", cap:"Ngerulmud", k:"Oceania" },
+      { c:"Papua New Guinea", cap:"Port Moresby", k:"Oceania" },
+      { c:"Samoa", cap:"Apia", k:"Oceania" },
+      { c:"Solomon Islands", cap:"Honiara", k:"Oceania" },
+      { c:"Tonga", cap:"Nukuʻalofa", k:"Oceania", alt:["nukualofa"] },
+      { c:"Tuvalu", cap:"Funafuti", k:"Oceania" },
+      { c:"Vanuatu", cap:"Port Vila", k:"Oceania" },
+    ];
+
+    const CONTINENTS = ["Africa","Asia","Europe","North America","South America","Oceania"];
+
+    /* ---- Elements ------------------------------------------------ */
+    const instrument = document.getElementById("instrument");
+    const btn    = document.getElementById("submitBtn");
+    const lbl    = btn.querySelector(".lbl");
+    const cursor = document.getElementById("cursor");
+    const status = document.getElementById("status");
+    const bar    = document.getElementById("bar");
+    const field  = document.getElementById("field");
+    const input  = document.getElementById("capital");
+    const feedback = document.getElementById("feedback");
+    const countryEl = document.getElementById("country");
+    const qNum = document.getElementById("qNum"), qTot = document.getElementById("qTot");
+    const qScore = document.getElementById("qScore"), qStreak = document.getElementById("qStreak");
+    const rangeLabel = document.getElementById("rangeLabel");
+    const rangeList = document.getElementById("rangeList");
+    const startView = document.getElementById("startView");
+    const quizView = document.getElementById("quizView");
+    const resultsView = document.getElementById("resultsView");
+    const review = document.getElementById("review");
+    const retryBtn = document.getElementById("retryBtn");
+    const newBtn = document.getElementById("newBtn");
+
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    /* ---- Answer normalization ------------------------------------ */
+    const norm = s => s.toLowerCase()
+      .normalize("NFD").replace(/[̀-ͯ]/g,"")   // strip accents
+      .replace(/^the\s+/,"")
+      .replace(/[^a-z0-9]+/g," ").trim();
+
+    function isCorrect(guess, q){
+      const g = norm(guess);
+      if(!g) return false;
+      return [q.cap, ...(q.alt||[])].map(norm).includes(g);
+    }
+
+    /* ---- Start screen: build the range selector ------------------ */
+    function countIn(k){ return COUNTRIES.filter(x => x.k === k).length; }
+
+    function buildStart(){
+      rangeList.innerHTML = "";
+      CONTINENTS.forEach(k => rangeList.appendChild(rangeRow(k, k, countIn(k))));
+      rangeList.appendChild(rangeRow("__all__", "All countries", COUNTRIES.length, true));
+    }
+    function rangeRow(key, name, n, all){
+      const b = document.createElement("button");
+      b.className = "range-row" + (all ? " all" : "");
+      b.type = "button";
+      b.innerHTML = `<span class="rn">${name}</span><span class="n">${n} ${n===1?"country":"countries"}</span>`;
+      b.addEventListener("click", () => startRound(key, name));
+      return b;
+    }
+
+    /* ---- Round state --------------------------------------------- */
+    let deck = [], i = 0, score = 0, streak = 0, attempt = 1;
+    let phase = "await";      // await | result
+    let locked = false;       // blocks re-entry during the Armed dwell
+    let missed = [];          // { c, cap } for the end-of-test review
+
+    function shuffle(a){
+      const r = a.slice();
+      for(let j=r.length-1;j>0;j--){ const t=(Math.random()*(j+1))|0; [r[j],r[t]]=[r[t],r[j]]; }
+      return r;
+    }
+
+    function beginRound(pool, name){
+      deck = shuffle(pool);
+      i = 0; score = 0; streak = 0; missed = [];
+      rangeLabel.textContent = "Capitals · " + name;
+      qTot.textContent = deck.length;
+      startView.classList.add("hidden");
+      resultsView.classList.add("hidden");
+      quizView.classList.remove("hidden");
+      loadQuestion();
+    }
+
+    function startRound(key, name){
+      const pool = key === "__all__" ? COUNTRIES : COUNTRIES.filter(x => x.k === key);
+      beginRound(pool, name);
+    }
+
+    function loadQuestion(){
+      phase = "await"; attempt = 1; locked = false;
+      const q = deck[i];
+      countryEl.textContent = q.c;
+      input.value = ""; input.disabled = false;
+      feedback.textContent = "";
+      instrument.classList.remove("sent","fault","pressed");
+      field.classList.remove("fault","shake");
+      lbl.textContent = "Submit";
+      btn.setAttribute("aria-label", "Submit answer");
+      status.textContent = "Awaiting";
+      qNum.textContent = i + 1;
+      qScore.textContent = score;
+      qStreak.textContent = streak;
+      setBar(i / deck.length);
+      input.focus();
+    }
+
+    /* ---- Shared button mechanics (from the Actuator) ------------- */
+    function setPress(down){
+      instrument.classList.toggle("pressed", down);
+      cursor.style.setProperty("--p", down ? 1 : 0);
+    }
+    function setBar(v){ bar.style.setProperty("--fill", Math.max(0, Math.min(1, v))); }
+
+    btn.addEventListener("pointerdown", () => setPress(true));
+    ["pointerup","pointerleave","pointercancel"].forEach(ev =>
+      btn.addEventListener(ev, () => setPress(false)));
+    btn.addEventListener("keydown", e => { if(e.key===" "||e.key==="Enter") setPress(true); });
+    btn.addEventListener("keyup",   e => { if(e.key===" "||e.key==="Enter") setPress(false); });
+
+    input.addEventListener("keydown", e => {
+      if(e.key === "Enter"){ e.preventDefault(); btn.click(); }
+    });
+    // typing after a wrong first try clears the fault flash
+    input.addEventListener("input", () => {
+      if(field.classList.contains("fault")){
+        field.classList.remove("fault");
+        instrument.classList.remove("fault");
+        if(phase === "await") status.textContent = "Awaiting";
+      }
+    });
+
+    btn.addEventListener("click", () => {
+      if(locked) return;
+      if(phase === "await") evaluate();
+      else advance();
+    });
+
+    /* ---- Evaluate an answer (2 tries per question) --------------- */
+    function evaluate(){
+      const guess = input.value.trim();
+      if(!guess){                       // empty: nudge, don't burn a try
+        field.classList.remove("shake"); void field.offsetWidth;
+        if(!reduce) field.classList.add("shake");
+        input.focus();
+        return;
+      }
+
+      locked = true;
+      input.disabled = true;
+      status.textContent = "Armed";
+      const q = deck[i];
+      const right = isCorrect(guess, q);
+      const dwell = reduce ? 0 : 420;
+
+      window.setTimeout(() => {
+        if(right)              resolveCorrect(q);
+        else if(attempt === 1) resolveRetry(q);
+        else                   resolveMissed(q);
+      }, dwell);
+    }
+
+    function resolveCorrect(q){
+      phase = "result";
+      score++; streak++;
+      instrument.classList.remove("fault");
+      field.classList.remove("fault","shake");
+      instrument.classList.add("sent");
+      status.textContent = "Correct";
+      feedback.innerHTML = `<span class="ok">✓ Correct</span> · <b>${q.cap}</b>`;
+      finishTurn();
+    }
+
+    function resolveRetry(q){       // first wrong — one try remains, no reveal
+      attempt = 2;
+      streak = 0;
+      instrument.classList.add("fault");
+      field.classList.add("fault");
+      field.classList.remove("shake"); void field.offsetWidth;
+      if(!reduce) field.classList.add("shake");
+      status.textContent = "Retry";
+      feedback.innerHTML = `<span class="no">✗ Not quite</span> · one try left`;
+      setPress(false);
+      qStreak.textContent = streak;
+      input.disabled = false;
+      input.value = "";
+      input.focus();
+      locked = false;            // stay in await for the second attempt
+    }
+
+    function resolveMissed(q){      // second wrong — reveal and record
+      phase = "result";
+      streak = 0;
+      missed.push(q);
+      instrument.classList.add("fault");
+      field.classList.add("fault");
+      status.textContent = "Missed";
+      feedback.innerHTML = `<span class="no">✗ Missed</span> · answer is <b>${q.cap}</b>`;
+      finishTurn();
+    }
+
+    function finishTurn(){          // shared tail for correct + missed
+      setPress(false);
+      qScore.textContent = score;
+      qStreak.textContent = streak;
+      setBar((i + 1) / deck.length);
+      lbl.textContent = (i === deck.length - 1) ? "See results →" : "Next →";
+      btn.setAttribute("aria-label", lbl.textContent);
+      locked = false;
+      btn.focus();
+    }
+
+    function advance(){
+      i++;
+      if(i >= deck.length) showResults();
+      else loadQuestion();
+    }
+
+    /* ---- Results ------------------------------------------------- */
+    function showResults(){
+      quizView.classList.add("hidden");
+      resultsView.classList.remove("hidden");
+      document.getElementById("finalScore").textContent = score;
+      document.getElementById("finalTot").textContent = deck.length;
+      const pct = Math.round(score / deck.length * 100);
+      let g;
+      if(pct === 100)     g = `Perfect · ${pct}% accuracy`;
+      else if(pct >= 80)  g = `Sharp · ${pct}% accuracy`;
+      else if(pct >= 60)  g = `Passing · ${pct}% accuracy`;
+      else if(pct >= 40)  g = `Rusty · ${pct}% accuracy`;
+      else                g = `Recalibrate · ${pct}% accuracy`;
+      document.getElementById("grade").textContent = g;
+
+      if(missed.length === 0){
+        review.innerHTML = `<p class="review-clean">Clean run — every capital correct.</p>`;
+        retryBtn.classList.add("hidden");
+        newBtn.classList.remove("ghost");   // New test is the only, primary action
+        newBtn.focus();
+      }else{
+        const rows = missed.map(m =>
+          `<div class="review-row"><span class="rc">${m.c}</span><span class="ra">${m.cap}</span></div>`
+        ).join("");
+        review.innerHTML =
+          `<p class="review-head">Missed · ${missed.length}</p>
+           <div class="review-scroll">${rows}</div>`;
+        retryBtn.classList.remove("hidden");
+        newBtn.classList.add("ghost");       // Retry is primary, New test steps back
+        retryBtn.focus();
+      }
+    }
+
+    retryBtn.addEventListener("click", () => {
+      if(!missed.length) return;
+      beginRound(missed.slice(), "Retry missed");   // copy before beginRound resets it
+    });
+
+    newBtn.addEventListener("click", () => {
+      resultsView.classList.add("hidden");
+      quizView.classList.add("hidden");
+      startView.classList.remove("hidden");
+      rangeLabel.textContent = "Capitals · Field Test";
+    });
+
+    /* ---- Go ------------------------------------------------------ */
+    buildStart();
+  </script>
+</body>
+</html>
