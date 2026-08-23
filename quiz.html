@@ -468,7 +468,7 @@
       }, dwell);
     }
 
-    function resolveCorrect(q){
+    function resolveCorrect(q){       // right first or second try — advance automatically
       phase = "result";
       score++; streak++;
       instrument.classList.remove("fault");
@@ -476,7 +476,15 @@
       instrument.classList.add("sent");
       status.textContent = "Correct";
       feedback.innerHTML = `<span class="ok">✓ Correct</span> · <b>${q.cap}</b>`;
-      finishTurn();
+      setPress(false);
+      qScore.textContent = score;
+      qStreak.textContent = streak;
+      setBar((i + 1) / deck.length);
+      // stays locked — no click needed, just a beat to see the green signal
+      pendingTimeout = window.setTimeout(() => {
+        pendingTimeout = null;
+        advance();
+      }, reduce ? 150 : 550);
     }
 
     function resolveRetry(q){       // first wrong — one try remains, no reveal
@@ -507,7 +515,7 @@
       finishTurn();
     }
 
-    function finishTurn(){          // shared tail for correct + missed
+    function finishTurn(){          // missed — wait for a click so the reveal can be read
       setPress(false);
       qScore.textContent = score;
       qStreak.textContent = streak;
