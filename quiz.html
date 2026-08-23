@@ -446,6 +446,10 @@
 
     btn.addEventListener("click", () => {
       if(locked) return;
+      // tapping the key would otherwise steal focus and close the iOS keyboard;
+      // reclaiming it synchronously here (inside the trusted tap) keeps it up
+      // through the delayed advance — iOS won't reopen it from async code later
+      input.focus();
       if(phase === "await") evaluate();
       else advance();
     });
