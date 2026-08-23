@@ -426,7 +426,10 @@
     }
     function setBar(v){ bar.style.setProperty("--fill", Math.max(0, Math.min(1, v))); }
 
-    btn.addEventListener("pointerdown", () => setPress(true));
+    btn.addEventListener("pointerdown", e => {
+      e.preventDefault();   // stop the tap from stealing focus off the input (keeps iOS keyboard open)
+      setPress(true);
+    });
     ["pointerup","pointerleave","pointercancel"].forEach(ev =>
       btn.addEventListener(ev, () => setPress(false)));
     btn.addEventListener("keydown", e => { if(e.key===" "||e.key==="Enter") setPress(true); });
