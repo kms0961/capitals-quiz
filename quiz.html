@@ -405,7 +405,7 @@
       phase = "await"; attempt = 1; locked = false;
       const q = deck[i];
       countryEl.textContent = q.c;
-      input.value = ""; input.disabled = false;
+      input.value = "";
       feedback.textContent = "";
       instrument.classList.remove("sent","fault","pressed");
       field.classList.remove("fault","shake");
@@ -453,8 +453,7 @@
     /* ---- Evaluate an answer (2 tries per question) --------------- */
     function evaluate(){
       const guess = input.value.trim();
-      locked = true;
-      input.disabled = true;
+      locked = true;          // blocks re-submission; input stays focused so iOS keeps the keyboard up
       status.textContent = "Armed";
       const q = deck[i];
       const right = isCorrect(guess, q);
@@ -498,7 +497,6 @@
       feedback.innerHTML = `<span class="no">✗ Not quite</span> · one try left`;
       setPress(false);
       qStreak.textContent = streak;
-      input.disabled = false;
       input.value = "";
       input.focus();
       locked = false;            // stay in await for the second attempt

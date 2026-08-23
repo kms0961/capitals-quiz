@@ -73,7 +73,6 @@
 }
 .capital::placeholder{color:var(--faint);}
 .capital:focus{outline:none;border-bottom-color:var(--ink);}
-.capital:disabled{color:var(--graphite);}
 .field.fault .capital{border-bottom-color:var(--fault);}
 
 /* nudge on reject */
