@@ -1,0 +1,206 @@
+/* Invoice Tracker — photo capture + OCR + on-phone log */
+
+:root{
+  --paper:#f3f1e8;
+  --paper-raised:#fffefa;
+  --panel:#eae6d7;
+  --card:#fffefa;
+  --ink:#23281f;
+  --graphite:#5c6152;
+  --faint:#8a8f7d;
+  --hairline:#cbbfa0;
+  --hairline-soft:#e2dcc8;
+  --signal:#1b4332;
+  --signal-bright:#40916c;
+  --danger:#a23b3b;
+  --danger-soft:#f3e3e1;
+
+  --f-display:'Fraunces','Iowan Old Style',Georgia,serif;
+  --f-body:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+
+body{
+  min-height:100vh;
+  background:var(--paper);
+  background-image:linear-gradient(var(--hairline-soft) 1px, transparent 1px);
+  background-size:100% 2rem;
+  background-attachment:local;
+  color:var(--ink);
+  font-family:var(--f-body);
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:48px;
+}
+
+.wrap{
+  max-width:640px;
+  margin:0 auto;
+  padding:20px 16px 0;
+}
+
+/* ---- Header ---------------------------------------------------- */
+.masthead{
+  display:flex;justify-content:space-between;align-items:baseline;
+  font-family:var(--f-mono);font-size:11px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--graphite);
+  padding-bottom:14px;margin-bottom:20px;
+  border-bottom:1px solid var(--hairline);
+}
+.masthead .count{color:var(--faint);}
+
+h1{
+  font-family:var(--f-display);
+  font-weight:600;
+  font-size:clamp(24px,6vw,32px);
+  line-height:1.05;
+  letter-spacing:-.02em;
+  margin:0 0 6px;
+}
+.lede{
+  font-size:14px;line-height:1.5;color:var(--graphite);
+  margin:0 0 22px;
+  max-width:52ch;
+}
+
+/* ---- Cards ------------------------------------------------------ */
+.card{
+  background:var(--card);
+  border:1px solid var(--hairline);
+  border-radius:14px;
+  padding:18px;
+  margin-bottom:18px;
+}
+.card h2{
+  font-family:var(--f-mono);
+  font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--graphite);
+  margin:0 0 14px;
+}
+
+/* ---- Capture ----------------------------------------------------- */
+.capture-row{display:flex;gap:10px;flex-wrap:wrap;}
+.btn{
+  appearance:none;border:0;cursor:pointer;border-radius:10px;
+  font-family:var(--f-body);font-weight:600;font-size:14px;
+  padding:13px 18px;
+  transition:transform .08s ease,opacity .15s ease;
+}
+.btn:active{transform:scale(.97);}
+.btn-primary{background:var(--signal);color:#fff;border:1px solid var(--signal);}
+.btn-primary:hover{background:var(--signal-bright);border-color:var(--signal-bright);}
+.btn-secondary{background:transparent;color:var(--signal);border:1px solid var(--hairline);}
+.btn-secondary:hover{background:var(--paper-raised);border-color:var(--signal);}
+.btn-danger{background:transparent;color:var(--danger);border:1px solid var(--danger);padding:8px 10px;font-size:13px;}
+.btn-danger:hover{background:var(--danger-soft);}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+.btn-block{width:100%;}
+
+#photoInput{display:none;}
+
+.preview-wrap{
+  margin-top:14px;
+  border-radius:10px;
+  overflow:hidden;
+  border:1px solid var(--hairline);
+  display:none;
+  position:relative;
+}
+.preview-wrap.show{display:block;}
+.preview-wrap img{display:block;width:100%;max-height:340px;object-fit:contain;background:var(--panel);}
+
+.ocr-status{
+  display:none;
+  align-items:center;gap:8px;
+  margin-top:12px;
+  font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;
+  color:var(--graphite);
+}
+.ocr-status.show{display:flex;}
+.spinner{
+  width:12px;height:12px;border-radius:50%;
+  border:2px solid var(--hairline);border-top-color:var(--signal);
+  animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ---- Form --------------------------------------------------------- */
+.form-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-top:14px;
+}
+.field{display:flex;flex-direction:column;gap:5px;}
+.field.full{grid-column:1 / -1;}
+.field label{
+  font-family:var(--f-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--faint);
+}
+.field input,.field select{
+  font-family:var(--f-body);font-size:15px;color:var(--ink);
+  background:var(--panel);
+  border:1px solid var(--hairline);
+  border-radius:8px;
+  padding:10px 11px;
+  width:100%;
+}
+.field input:focus,.field select:focus{
+  outline:2px solid var(--signal);outline-offset:1px;
+}
+
+.form-actions{
+  display:flex;gap:10px;margin-top:16px;
+}
+
+/* ---- List ---------------------------------------------------------- */
+.list{display:flex;flex-direction:column;gap:10px;}
+.empty{
+  color:var(--faint);font-size:13px;text-align:center;padding:24px 0;
+}
+
+.entry{
+  display:flex;gap:12px;align-items:center;
+  background:var(--card);
+  border:1px solid var(--hairline);
+  border-radius:12px;
+  padding:10px;
+  cursor:pointer;
+}
+.entry img{
+  width:52px;height:52px;object-fit:cover;border-radius:8px;
+  background:var(--panel);flex-shrink:0;
+}
+.entry .meta{flex:1;min-width:0;}
+.entry .vendor{font-weight:600;font-size:14px;}
+.entry .sub{
+  font-family:var(--f-mono);font-size:11px;color:var(--graphite);
+  margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.entry .amount{
+  font-family:var(--f-mono);font-weight:600;font-size:14px;
+  white-space:nowrap;
+}
+.entry .amount.negative{color:var(--danger);}
+
+/* ---- Export bar ------------------------------------------------------ */
+.export-row{display:flex;gap:10px;flex-wrap:wrap;}
+
+/* ---- Toast ------------------------------------------------------------ */
+.toast{
+  position:fixed;left:50%;bottom:22px;transform:translate(-50%,12px);
+  background:var(--signal);color:#fff;
+  font-size:13px;font-weight:500;
+  padding:11px 18px;border-radius:10px;
+  opacity:0;pointer-events:none;
+  transition:opacity .2s ease,transform .2s ease;
+  z-index:20;
+  max-width:86vw;text-align:center;
+}
+.toast.show{opacity:1;transform:translate(-50%,0);}
+
+@media (max-width:420px){
+  .form-grid{grid-template-columns:1fr;}
+}

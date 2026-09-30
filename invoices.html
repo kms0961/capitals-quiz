@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Invoice Tracker</title>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1b4332">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Invoices">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" href="icons/icon-192.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="invoices.css">
+</head>
+<body>
+  <div class="wrap">
+    <div class="masthead">
+      <span>Invoice Tracker</span>
+      <span class="count" id="entryCount">0 saved</span>
+    </div>
+
+    <h1>Photograph it. Log it. Export it.</h1>
+    <p class="lede">Snap a photo of an invoice, let it scan for the vendor, date, invoice number, and amount, confirm the details, and save. Everything stays on this phone until you export.</p>
+
+    <!-- Capture / entry form -->
+    <section class="card">
+      <h2 id="formHeading">New Invoice</h2>
+
+      <div class="capture-row">
+        <button type="button" class="btn btn-primary" id="takePhotoBtn">Take Photo</button>
+        <button type="button" class="btn btn-secondary" id="choosePhotoBtn">Choose from Library</button>
+      </div>
+      <input type="file" id="photoInput" accept="image/*" capture="environment">
+      <input type="file" id="libraryInput" accept="image/*">
+
+      <div class="preview-wrap" id="previewWrap">
+        <img id="previewImg" alt="Invoice preview">
+      </div>
+
+      <div class="ocr-status" id="ocrStatus">
+        <span class="spinner" aria-hidden="true"></span>
+        <span id="ocrStatusText">Scanning…</span>
+      </div>
+
+      <form id="invoiceForm">
+        <div class="form-grid">
+          <div class="field full">
+            <label for="fVendor">Vendor</label>
+            <input type="text" id="fVendor" list="vendorList" autocomplete="off">
+            <datalist id="vendorList"></datalist>
+          </div>
+
+          <div class="field">
+            <label for="fInvDate">Inv Date</label>
+            <input type="date" id="fInvDate">
+          </div>
+          <div class="field">
+            <label for="fReceived">Received</label>
+            <input type="date" id="fReceived">
+          </div>
+
+          <div class="field">
+            <label for="fInvoice">Invoice #</label>
+            <input type="text" id="fInvoice" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="fAmount">Amount</label>
+            <input type="text" id="fAmount" inputmode="decimal" placeholder="0.00">
+          </div>
+
+          <div class="field">
+            <label for="fPO">PO</label>
+            <input type="text" id="fPO" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="fMethod">Method</label>
+            <input type="text" id="fMethod" list="methodList" autocomplete="off">
+            <datalist id="methodList">
+              <option value="US Mail">
+              <option value="AP Email">
+              <option value="LBMX">
+              <option value="LBMX/AP">
+              <option value="Website">
+              <option value="Purchaser">
+            </datalist>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary btn-block" id="saveBtn">Save Invoice</button>
+          <button type="button" class="btn btn-secondary" id="cancelEditBtn" style="display:none;">Cancel</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Export -->
+    <section class="card">
+      <h2>Export</h2>
+      <div class="export-row">
+        <button type="button" class="btn btn-secondary" id="exportCsvBtn">Export CSV</button>
+        <button type="button" class="btn btn-secondary" id="exportXlsxBtn">Export Excel (.xlsx)</button>
+      </div>
+    </section>
+
+    <!-- Saved list -->
+    <section class="card">
+      <h2>Saved Invoices</h2>
+      <div class="list" id="list">
+        <p class="empty">No invoices saved yet.</p>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="js/invoices.js"></script>
+</body>
+</html>
