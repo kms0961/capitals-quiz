@@ -126,6 +126,17 @@ h1{
 }
 @keyframes spin{to{transform:rotate(360deg);}}
 
+.ocr-raw{
+  margin-top:10px;
+  font-family:var(--f-mono);font-size:11px;color:var(--graphite);
+}
+.ocr-raw summary{cursor:pointer;color:var(--faint);letter-spacing:.02em;}
+.ocr-raw pre{
+  white-space:pre-wrap;word-break:break-word;
+  background:var(--panel);border:1px solid var(--hairline);border-radius:8px;
+  padding:10px;margin-top:8px;max-height:180px;overflow-y:auto;
+}
+
 /* ---- Form --------------------------------------------------------- */
 .form-grid{
   display:grid;

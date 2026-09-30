@@ -64,6 +64,8 @@ const els = {
   previewImg: document.getElementById("previewImg"),
   ocrStatus: document.getElementById("ocrStatus"),
   ocrStatusText: document.getElementById("ocrStatusText"),
+  ocrRawDetails: document.getElementById("ocrRawDetails"),
+  ocrRawText: document.getElementById("ocrRawText"),
   form: document.getElementById("invoiceForm"),
   fVendor: document.getElementById("fVendor"),
   fInvDate: document.getElementById("fInvDate"),
@@ -99,24 +101,12 @@ function showToast(msg) {
 /* ---------------------------------------------------------------------
    Photo capture + downscale
 --------------------------------------------------------------------- */
-function readAndDownscale(file, maxDim = 1600, quality = 0.82) {
+function loadImage(file) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const reader = new FileReader();
     reader.onload = () => {
-      img.onload = () => {
-        let { width, height } = img;
-        if (width > maxDim || height > maxDim) {
-          const scale = maxDim / Math.max(width, height);
-          width = Math.round(width * scale);
-          height = Math.round(height * scale);
-        }
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL("image/jpeg", quality));
-      };
+      img.onload = () => resolve(img);
       img.onerror = reject;
       img.src = reader.result;
     };
@@ -125,13 +115,57 @@ function readAndDownscale(file, maxDim = 1600, quality = 0.82) {
   });
 }
 
+function drawScaled(img, maxDim) {
+  let { width, height } = img;
+  if (width > maxDim || height > maxDim) {
+    const scale = maxDim / Math.max(width, height);
+    width = Math.round(width * scale);
+    height = Math.round(height * scale);
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+  return canvas;
+}
+
+// Smaller JPEG copy — what actually gets stored with the record.
+function toStorageDataUrl(img, maxDim = 1600, quality = 0.82) {
+  return drawScaled(img, maxDim).toDataURL("image/jpeg", quality);
+}
+
+// Larger grayscale + contrast-stretched copy — feeds the OCR pass only,
+// never stored. Phone photos are usually lower-contrast than a scan, and
+// Tesseract reads high-contrast black-on-white text far more reliably.
+function toOcrDataUrl(img, maxDim = 2200) {
+  const canvas = drawScaled(img, maxDim);
+  const ctx = canvas.getContext("2d");
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const px = imageData.data;
+
+  let min = 255, max = 0;
+  for (let i = 0; i < px.length; i += 4) {
+    const gray = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+    px[i] = gray;
+    if (gray < min) min = gray;
+    if (gray > max) max = gray;
+  }
+  const range = Math.max(1, max - min);
+  for (let i = 0; i < px.length; i += 4) {
+    const stretched = ((px[i] - min) / range) * 255;
+    px[i] = px[i + 1] = px[i + 2] = stretched;
+  }
+  ctx.putImageData(imageData, 0, 0);
+  return canvas.toDataURL("image/png");
+}
+
 async function handlePhotoFile(file) {
   if (!file) return;
-  const dataUrl = await readAndDownscale(file);
-  currentPhotoDataUrl = dataUrl;
-  els.previewImg.src = dataUrl;
+  const img = await loadImage(file);
+  currentPhotoDataUrl = toStorageDataUrl(img);
+  els.previewImg.src = currentPhotoDataUrl;
   els.previewWrap.classList.add("show");
-  runOCR(dataUrl);
+  runOCR(toOcrDataUrl(img));
 }
 
 els.takePhotoBtn.addEventListener("click", () => els.photoInput.click());
@@ -156,6 +190,7 @@ async function runOCR(dataUrl) {
   setOcrStatus("Scanning…", true);
   try {
     const { data } = await Tesseract.recognize(dataUrl, "eng");
+    showRawOcrText(data.text || "");
     applyParsedFields(parseInvoiceText(data.text || ""));
     setOcrStatus("Scan complete — check the fields below.", true);
     setTimeout(() => setOcrStatus("", false), 2500);
@@ -164,6 +199,17 @@ async function runOCR(dataUrl) {
     setOcrStatus("Scan failed — enter details manually.", true);
     setTimeout(() => setOcrStatus("", false), 3000);
   }
+}
+
+function showRawOcrText(text) {
+  if (!els.ocrRawDetails) return;
+  const trimmed = text.trim();
+  if (!trimmed) {
+    els.ocrRawDetails.style.display = "none";
+    return;
+  }
+  els.ocrRawText.textContent = trimmed;
+  els.ocrRawDetails.style.display = "";
 }
 
 const MONTHS = "jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec";
@@ -192,53 +238,119 @@ function toISODate(y, m, d) {
   return `${y}-${mm}-${dd}`;
 }
 
+// Header/label words that show up on nearly every invoice template — never
+// good vendor guesses, but OCR happily hands them back as "the first line".
+const VENDOR_BLACKLIST = new Set([
+  "invoice", "invoice date", "invoice number", "invoice #", "invoice no",
+  "bill to", "ship to", "remit to", "sold to", "pay to",
+  "statement", "receipt", "estimate", "quote", "quotation",
+  "purchase order", "order", "order number", "order #",
+  "customer", "customer id", "account", "account number",
+  "description", "date", "due date", "page", "terms", "net 30",
+  "subtotal", "total", "tax", "balance due", "amount due", "thank you",
+]);
+
+function guessVendor(lines) {
+  const known = getKnownVendors();
+  const joinedLower = lines.join(" ").toLowerCase();
+  const knownHit = known.find((v) => v && joinedLower.includes(v.toLowerCase()));
+  if (knownHit) return knownHit;
+
+  for (const raw of lines.slice(0, 12)) {
+    const l = raw.trim();
+    if (l.length < 2) continue;
+    const stripped = l.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+    if (!stripped || VENDOR_BLACKLIST.has(stripped)) continue;
+    if (/^\d+$/.test(l)) continue;
+    if (parseDateToken(l)) continue;
+    if (!/[a-zA-Z]{2,}/.test(l)) continue;
+    return l.slice(0, 60);
+  }
+  return "";
+}
+
+function guessDate(flatText) {
+  const idx = flatText.search(/invoice\s*date/i);
+  if (idx >= 0) {
+    const found = parseDateToken(flatText.slice(idx, idx + 40));
+    if (found) return found;
+  }
+  return parseDateToken(flatText) || "";
+}
+
+// Pull every match of `valueRe` out of `str` as plain strings.
+function matchAll(str, valueRe) {
+  const out = [];
+  const re = new RegExp(valueRe, valueRe.flags.includes("g") ? valueRe.flags : valueRe.flags + "g");
+  let m;
+  while ((m = re.exec(str))) out.push(m);
+  return out;
+}
+
+function guessInvoiceNumber(flatText) {
+  const skip = new Set(["date", "number", "no", "page", "total", "due"]);
+  const matches = matchAll(
+    flatText,
+    /\b(?:invoice|inv)\.?\s*(?:no\.?|number|#)?\s*[:#]?\s*([A-Za-z0-9][A-Za-z0-9\-]{2,})/i
+  );
+  for (const m of matches) {
+    const token = m[1];
+    if (skip.has(token.toLowerCase()) || !/\d/.test(token)) continue;
+    return token;
+  }
+  return "";
+}
+
+function guessPO(flatText) {
+  const matches = matchAll(
+    flatText,
+    /\bp\.?o\.?\s*(?:no\.?|number|#)?\s*[:#]?\s*([A-Za-z0-9][A-Za-z0-9\-]{2,})/i
+  );
+  for (const m of matches) {
+    const token = m[1];
+    if (!/\d/.test(token)) continue; // filters out "PO Box <city>"-style false hits
+    return token;
+  }
+  return "";
+}
+
+const MONEY_RE = /-?\$?\s?\d{1,3}(?:,\d{3})*\.\d{2}/g;
+const TOTAL_KEYWORDS_RE = /(invoice\s+total|grand\s+total|balance\s+due|amount\s+due|total\s+due|please\s+pay|pay\s+this\s+amount|total)/gi;
+
+function allMoney(str) {
+  const matches = str.match(MONEY_RE);
+  if (!matches) return [];
+  return matches.map((s) => parseFloat(s.replace(/[\$,\s]/g, "")));
+}
+
+function largestAbs(nums) {
+  if (!nums.length) return null;
+  return nums.reduce((a, b) => (Math.abs(b) > Math.abs(a) ? b : a), nums[0]);
+}
+
+function guessAmount(flatText) {
+  const candidates = [];
+  let km;
+  const kre = new RegExp(TOTAL_KEYWORDS_RE);
+  while ((km = kre.exec(flatText))) {
+    candidates.push(...allMoney(flatText.slice(km.index, km.index + 80)));
+  }
+  return largestAbs(candidates) ?? largestAbs(allMoney(flatText)) ?? "";
+}
+
 function parseInvoiceText(text) {
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  const result = { vendor: "", invDate: "", invoice: "", amount: "", po: "" };
+  // Collapse to single-spaced text so a label and its value that landed on
+  // different OCR lines (common with invoice tables) still read as adjacent.
+  const flatText = text.replace(/\s+/g, " ").trim();
 
-  // Vendor — first substantive line, or a match against known vendors
-  const known = getKnownVendors();
-  const lower = text.toLowerCase();
-  const knownHit = known.find((v) => v && lower.includes(v.toLowerCase()));
-  if (knownHit) {
-    result.vendor = knownHit;
-  } else {
-    const candidate = lines.find((l) => l.length >= 2 && !/^\d+$/.test(l) && !parseDateToken(l));
-    if (candidate) result.vendor = candidate.slice(0, 60);
-  }
-
-  // Invoice date — prefer a line mentioning "invoice date", else first date found
-  let dateLine = lines.find((l) => /invoice\s*date/i.test(l));
-  result.invDate = (dateLine && parseDateToken(dateLine)) || parseDateToken(text) || "";
-
-  // Invoice number
-  let invLine = lines.find((l) => /\b(invoice|inv)\b[^0-9a-z]{0,4}(#|no\.?|number)/i.test(l));
-  if (invLine) {
-    const m = invLine.match(/(?:invoice|inv)[^0-9a-z]{0,6}(?:#|no\.?|number)?\s*[:#]?\s*([A-Za-z0-9\-]{3,})/i);
-    if (m) result.invoice = m[1];
-  }
-
-  // PO number
-  let poLine = lines.find((l) => /\bp\.?o\.?\b/i.test(l));
-  if (poLine) {
-    const m = poLine.match(/p\.?o\.?\s*(?:#|no\.?|number)?\s*[:#]?\s*([A-Za-z0-9\-]{3,})/i);
-    if (m) result.po = m[1];
-  }
-
-  // Amount — prefer a "total/balance/amount due" line, else the largest dollar figure
-  const amountLine = lines.find((l) =>
-    /(total|balance\s+due|amount\s+due|grand\s+total)/i.test(l) && /\d/.test(l)
-  );
-  const moneyRe = /-?\$?\s?\d{1,3}(?:,\d{3})*\.\d{2}/g;
-  function bestFrom(str) {
-    const matches = str.match(moneyRe);
-    if (!matches) return null;
-    const nums = matches.map((s) => parseFloat(s.replace(/[\$,\s]/g, "")));
-    return nums.reduce((a, b) => (Math.abs(b) > Math.abs(a) ? b : a), nums[0]);
-  }
-  result.amount = (amountLine && bestFrom(amountLine)) ?? bestFrom(text) ?? "";
-
-  return result;
+  return {
+    vendor: guessVendor(lines),
+    invDate: guessDate(flatText),
+    invoice: guessInvoiceNumber(flatText),
+    amount: guessAmount(flatText),
+    po: guessPO(flatText),
+  };
 }
 
 function applyParsedFields(parsed) {
@@ -269,6 +381,7 @@ function resetForm() {
   els.fReceived.value = todayISO();
   els.previewWrap.classList.remove("show");
   els.previewImg.src = "";
+  els.ocrRawDetails.style.display = "none";
   els.formHeading.textContent = "New Invoice";
   els.saveBtn.textContent = "Save Invoice";
   els.cancelEditBtn.style.display = "none";
@@ -378,6 +491,7 @@ function openEntry(r) {
   } else {
     els.previewWrap.classList.remove("show");
   }
+  els.ocrRawDetails.style.display = "none";
 
   els.formHeading.textContent = "Edit Invoice";
   els.saveBtn.textContent = "Update Invoice";
