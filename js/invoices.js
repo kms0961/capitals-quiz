@@ -240,15 +240,22 @@ function toISODate(y, m, d) {
 
 // Header/label words that show up on nearly every invoice template — never
 // good vendor guesses, but OCR happily hands them back as "the first line".
-const VENDOR_BLACKLIST = new Set([
-  "invoice", "invoice date", "invoice number", "invoice #", "invoice no",
-  "bill to", "ship to", "remit to", "sold to", "pay to",
-  "statement", "receipt", "estimate", "quote", "quotation",
-  "purchase order", "order", "order number", "order #",
-  "customer", "customer id", "account", "account number",
-  "description", "date", "due date", "page", "terms", "net 30",
-  "subtotal", "total", "tax", "balance due", "amount due", "thank you",
-]);
+// Matched as whole words anywhere in the line, not just an exact full-line
+// match, since OCR often bundles a label with stray digits/punctuation
+// ("INVOICE", "Invoice #12345", "TAX INVOICE" all need to be caught).
+const VENDOR_LABEL_LINE_RE = new RegExp(
+  "^\\s*(tax\\s+|original\\s+|duplicate\\s+)?(" +
+    [
+      "invoice", "bill to", "ship to", "remit to", "sold to", "pay to",
+      "statement", "receipt", "estimate", "quote", "quotation",
+      "purchase order", "order number", "order #", "order",
+      "customer id", "customer", "account number", "account",
+      "description", "due date", "date", "page", "terms", "net 30",
+      "subtotal", "total", "tax", "balance due", "amount due", "thank you",
+    ].join("|") +
+    ")(\\s|#|:|$)",
+  "i"
+);
 
 function guessVendor(lines) {
   const known = getKnownVendors();
@@ -259,8 +266,7 @@ function guessVendor(lines) {
   for (const raw of lines.slice(0, 12)) {
     const l = raw.trim();
     if (l.length < 2) continue;
-    const stripped = l.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
-    if (!stripped || VENDOR_BLACKLIST.has(stripped)) continue;
+    if (VENDOR_LABEL_LINE_RE.test(l)) continue;
     if (/^\d+$/.test(l)) continue;
     if (parseDateToken(l)) continue;
     if (!/[a-zA-Z]{2,}/.test(l)) continue;
@@ -301,15 +307,21 @@ function guessInvoiceNumber(flatText) {
   return "";
 }
 
+// Tried in order: the spelled-out label first (less ambiguous), then the
+// abbreviation. "[o0]" tolerates OCR reading the O in "PO" as a zero, which
+// is a common misread for a lone two-character label sitting next to digits.
+const PO_PATTERNS = [
+  /\bpurchase\s*[o0]rder\s*(?:no\.?|number|#)?\s*[:#]?\s*([A-Za-z0-9][A-Za-z0-9\-]{2,})/i,
+  /\bp\.?\s?[o0]\.?\s*(?:no\.?|number|#)?\s*[:#]?\s*([A-Za-z0-9][A-Za-z0-9\-]{2,})/i,
+];
+
 function guessPO(flatText) {
-  const matches = matchAll(
-    flatText,
-    /\bp\.?o\.?\s*(?:no\.?|number|#)?\s*[:#]?\s*([A-Za-z0-9][A-Za-z0-9\-]{2,})/i
-  );
-  for (const m of matches) {
-    const token = m[1];
-    if (!/\d/.test(token)) continue; // filters out "PO Box <city>"-style false hits
-    return token;
+  for (const pattern of PO_PATTERNS) {
+    for (const m of matchAll(flatText, pattern)) {
+      const token = m[1];
+      if (!/\d/.test(token)) continue; // filters out "PO Box <city>"-style false hits
+      return token;
+    }
   }
   return "";
 }
